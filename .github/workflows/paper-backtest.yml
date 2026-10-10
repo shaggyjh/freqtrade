@@ -18,9 +18,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download candles and run backtest
         run: |
+          set -o pipefail
           mkdir -p project/results
           docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             download-data --config project/config.paper.json --timeframes 1h --days 365
-          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             backtesting --config project/config.paper.json --strategy-path project/strategies             --strategy SimpleTrend --export trades --export-filename project/results/baseline.json             | tee project/results/backtest.log
+          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             backtesting --config project/config.paper.json --strategy-path project/strategies             --strategy SimpleTrend --export trades --backtest-directory project/results             | tee project/results/backtest.log
       - name: Save results
         if: always()
         uses: actions/upload-artifact@v4
