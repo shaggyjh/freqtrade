@@ -1,6 +1,6 @@
 # Paper-only quant research — first milestone
 
-This is a deliberately small experiment, not a production trading system. No live trading, no exchange API credentials, no leverage. We start with BTC/USDT and ETH/USDT on Kraken, 1-hour candles, and a simple EMA crossover baseline.
+This is a deliberately small experiment, not a production trading system. No live trading, no exchange API credentials, no leverage. We start with BTC/USDT and ETH/USDT on Binance, 1-hour candles, and a simple EMA crossover baseline.
 
 ## Non-negotiable simplicity rule
 Do not add infrastructure, dashboards, AI agents, cloud services, extra risk layers or speculative requirements before the first real backtest is executed and reviewed. Fix actual defects; don't build for imagined future needs.
