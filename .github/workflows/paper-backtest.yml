@@ -20,8 +20,8 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p project/results
-          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             download-data --config project/config.paper.json --timeframes 1h --days 365
-          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             backtesting --config project/config.paper.json --strategy-path project/strategies             --strategy SimpleTrend --export trades --backtest-directory project/results             | tee project/results/backtest.log
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             download-data --config project/config.paper.json --timeframes 1h --days 365
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable             backtesting --config project/config.paper.json --strategy-path project/strategies             --strategy SimpleTrend --export trades --backtest-directory project/results             | tee project/results/backtest.log
       - name: Save results
         if: always()
         uses: actions/upload-artifact@v4
