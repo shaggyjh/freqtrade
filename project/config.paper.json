@@ -8,7 +8,7 @@
   "max_open_trades": 2,
   "timeframe": "1h",
   "exchange": {
-    "name": "kraken",
+    "name": "binance",
     "key": "",
     "secret": "",
     "pair_whitelist": [
