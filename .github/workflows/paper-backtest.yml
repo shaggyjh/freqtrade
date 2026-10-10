@@ -2,6 +2,10 @@ name: Paper-only Freqtrade backtest
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/**'
+      - '.github/workflows/paper-backtest.yml'
 
 permissions:
   contents: read
