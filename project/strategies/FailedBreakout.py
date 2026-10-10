@@ -5,7 +5,7 @@ import talib.abstract as ta
 
 class FailedBreakout(IStrategy):
     INTERFACE_VERSION = 3
-    timeframe = "4h"
+    timeframe = "6h"
     can_short = False
     minimal_roi = {"0": 0.08}
     stoploss = -0.06
