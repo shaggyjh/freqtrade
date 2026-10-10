@@ -54,16 +54,18 @@ jobs:
           for offset in 270 180 90; do
             start="$(date -u -d "$offset days ago" +%Y%m%d)"
             end="$(date -u -d "$((offset - 90)) days ago" +%Y%m%d)"
-            name="ema_6h_window_${offset}"
-            mkdir -p "project/results/$name"
-            chmod 777 "project/results/$name"
-            echo "=== $name: $start-$end ==="
-            docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
-              backtesting --config project/config.paper.json \
-              --strategy-path project/strategies --strategy SimpleTrend \
-              --timeframe 6h --fee 0.012 --timerange "$start-$end" \
-              --export trades --backtest-directory "project/results/$name" \
-              2>&1 | tee "project/results/$name/backtest.log"
+            for strategy in SimpleTrend VolatilityFilteredTrend; do
+              name="${strategy}_6h_window_${offset}"
+              mkdir -p "project/results/$name"
+              chmod 777 "project/results/$name"
+              echo "=== $name: $start-$end ==="
+              docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+                backtesting --config project/config.paper.json \
+                --strategy-path project/strategies --strategy "$strategy" \
+                --timeframe 6h --fee 0.012 --timerange "$start-$end" \
+                --export trades --backtest-directory "project/results/$name" \
+                2>&1 | tee "project/results/$name/backtest.log"
+            done
           done
       - name: Save research results
         if: always()
