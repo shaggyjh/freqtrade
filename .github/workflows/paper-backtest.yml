@@ -22,7 +22,7 @@ jobs:
           mkdir -p project/results
           chmod 777 project/results
           docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
-            download-data --config project/config.paper.json --timeframes 1h 4h 1d --days 365
+            download-data --config project/config.paper.json --timeframes 1h 6h 1d --days 365
       - name: Compare strategy, timeframe and fee assumptions
         run: |
           set -euo pipefail
@@ -40,11 +40,11 @@ jobs:
           }
           run_test ema_1h_original_fee SimpleTrend 1h 0.012
           run_test ema_1h_lower_fee SimpleTrend 1h 0.006
-          run_test ema_4h_original_fee SimpleTrend 4h 0.012
-          run_test ema_4h_lower_fee SimpleTrend 4h 0.006
+          run_test ema_6h_original_fee SimpleTrend 6h 0.012
+          run_test ema_6h_lower_fee SimpleTrend 6h 0.006
           run_test ema_1d_original_fee SimpleTrend 1d 0.012
-          run_test donchian_4h_original_fee DonchianBreakout 4h 0.012
-          run_test failed_breakout_4h_original_fee FailedBreakout 4h 0.012
+          run_test donchian_6h_original_fee DonchianBreakout 6h 0.012
+          run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
       - name: Save research results
         if: always()
         uses: actions/upload-artifact@v4
