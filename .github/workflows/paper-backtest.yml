@@ -47,6 +47,7 @@ jobs:
           run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
           run_test crowd_exhaustion_6h CrowdExhaustion 6h 0.012
+          run_test attention_aftershock_6h AttentionAftershock 6h 0.012
       - name: Evaluate baseline on three separate historical windows
         run: |
           set -euo pipefail
