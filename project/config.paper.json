@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "trading_mode": "spot",
+  "dry_run": true,
+  "dry_run_wallet": 10000,
+  "stake_currency": "USDT",
+  "stake_amount": 100,
+  "max_open_trades": 2,
+  "timeframe": "1h",
+  "exchange": {
+    "name": "kraken",
+    "key": "",
+    "secret": "",
+    "pair_whitelist": [
+      "BTC/USDT",
+      "ETH/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "bot_name": "paper_only",
+  "initial_state": "stopped"
+}
