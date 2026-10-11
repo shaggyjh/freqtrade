@@ -42,10 +42,16 @@ jobs:
           run_test ema_1h_lower_fee SimpleTrend 1h 0.006
           run_test ema_6h_original_fee SimpleTrend 6h 0.012
           run_test ema_6h_lower_fee SimpleTrend 6h 0.006
+          # Indicative UK Coinbase Advanced taker fee and execution friction scenarios.
+          # Account-specific fee tier and actual spread/slippage remain unverified.
+          run_test ema_6h_indicative_taker SimpleTrend 6h 0.005
+          run_test ema_6h_taker_plus_friction SimpleTrend 6h 0.007
           run_test ema_1d_original_fee SimpleTrend 1d 0.012
           run_test donchian_6h_original_fee DonchianBreakout 6h 0.012
           run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
+          run_test volatility_filtered_6h_indicative_taker VolatilityFilteredTrend 6h 0.005
+          run_test volatility_filtered_6h_taker_plus_friction VolatilityFilteredTrend 6h 0.007
           # Cost stress: 1.2% fee plus 0.3% per-side execution-cost proxy.
           # This is a sensitivity test, not a calibrated exchange spread model.
           run_test ema_6h_cost_stress SimpleTrend 6h 0.015
@@ -71,6 +77,20 @@ jobs:
                 --timeframe 6h --fee 0.012 --timerange "$start-$end" \
                 --export trades --backtest-directory "project/results/$name" \
                 2>&1 | tee "project/results/$name/backtest.log"
+            done
+            # Compare indicative 0.5%, 0.7%, and stressed 1.5% per-side costs.
+            for fee in 0.005 0.007; do
+              for strategy in SimpleTrend VolatilityFilteredTrend; do
+                name="${strategy}_6h_fee_${fee}_window_${offset}"
+                mkdir -p "project/results/$name"
+                chmod 777 "project/results/$name"
+                docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+                  backtesting --config project/config.paper.json \
+                  --strategy-path project/strategies --strategy "$strategy" \
+                  --timeframe 6h --fee "$fee" --timerange "$start-$end" \
+                  --export trades --backtest-directory "project/results/$name" \
+                  2>&1 | tee "project/results/$name/backtest.log"
+              done
             done
             # Also stress each strategy at 1.5% total per-side assumed costs.
             for strategy in SimpleTrend VolatilityFilteredTrend; do
