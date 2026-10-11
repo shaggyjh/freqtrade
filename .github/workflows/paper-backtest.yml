@@ -119,6 +119,14 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
             project/relative_value_study.py --output project/results/relative_value_study.json
+      - name: Evaluate cost-adjusted BTC spot-only proxy
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              project/relative_value_spot_proxy.py --fee "$fee" \
+              --output "project/results/btc_spot_fee_${fee}.json"
+          done
       - name: Save research results
         if: always()
         uses: actions/upload-artifact@v4
