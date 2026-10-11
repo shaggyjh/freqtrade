@@ -1,0 +1,44 @@
+name: Intraday paper-only backtests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/strategies/IntradayPullback.py'
+      - '.github/workflows/intraday-backtest.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  intraday:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Coinbase 15-minute candles
+        run: |
+          set -euo pipefail
+          mkdir -p project/results/intraday
+          chmod -R 777 project/results/intraday
+          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            download-data --config project/config.paper.json --timeframes 15m --days 180
+      - name: Backtest 15-minute pullback with realistic fee stress
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            name="project/results/intraday/fee_${fee}"
+            mkdir -p "$name"
+            chmod 777 "$name"
+            docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              backtesting --config project/config.paper.json \
+              --strategy-path project/strategies --strategy IntradayPullback \
+              --timeframe 15m --fee "$fee" --export trades \
+              --backtest-directory "$name" 2>&1 | tee "$name/backtest.log"
+          done
+      - name: Upload paper-only results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intraday-paper-backtest
+          path: project/results/intraday/
