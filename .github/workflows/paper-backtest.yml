@@ -50,6 +50,9 @@ jobs:
           run_test donchian_6h_original_fee DonchianBreakout 6h 0.012
           run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
+          run_test regime_gated_6h RegimeGatedTrend 6h 0.012
+          run_test regime_gated_6h_taker RegimeGatedTrend 6h 0.005
+          run_test regime_gated_6h_friction RegimeGatedTrend 6h 0.007
           run_test volatility_filtered_6h_indicative_taker VolatilityFilteredTrend 6h 0.005
           run_test volatility_filtered_6h_taker_plus_friction VolatilityFilteredTrend 6h 0.007
           # Cost stress: 1.2% fee plus 0.3% per-side execution-cost proxy.
