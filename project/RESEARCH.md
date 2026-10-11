@@ -49,3 +49,19 @@ VolatilityFilteredTrend's non-overlapping 90-day windows (6h, same fee) yielded 
 - **Next hypothesis to preregister:** exits are late because the 6h EMA20/50 reversal requires a large move; compare a single predetermined earlier-exit variant against the frozen baseline on a *development* window, then test on separate unseen history. Do not implement or tune the variant using the evaluation windows already inspected.
 
 **Status:** Phase 2 tooling in progress; benchmark and independent validation are not yet executed/verified. Phase 2 is **not complete** and no profitable strategy is established.
+
+## 11 October 2026: benchmark runner correction and attention research
+
+- The uploaded 11 October run **did not produce a valid buy-and-hold benchmark**: the workflow called `python` through the Freqtrade image entrypoint, yielding `invalid choice: 'python'` three times. Fixed by setting Docker `--entrypoint python` and ensuring the benchmark result directories are writable. **Do not claim benchmark outperformance until the corrected workflow executes and the three JSON outputs are inspected.**
+- AttentionAftershock ran for 340 days (2025-11-05 to 2026-10-11) with 41 trades, 9 wins, 32 losses, -112.684 USDT net (-1.13% wallet) at 1.2% fees per side. Exit-signal exits accounted for 30 losing trades, -128.508 USDT. This is negative evidence for the OHLCV aftershock proxy as specified, **not** evidence that public attention exhaustion fails.
+- VolatilityFilteredTrend's **11 October** quarterly results: +13.362 USDT (6 trades), -12.071 USDT (4 trades), +8.014 USDT (6 trades). Do not conflate these dates/results with the earlier 10 October windows.
+
+### Preregister a true-attention test before inspecting outcomes
+
+**Data candidate:** Wikimedia Pageviews API daily article-view counts for Bitcoin and Ethereum pages, or timestamped public-news mention counts. This is a measure of *information-seeking activity*, not a complete measure of trader attention or sentiment. Confirm endpoint availability, article-name stability, missing days, bot filtering, timezone, revisions and historical coverage before testing. Do not fabricate or interpolate attention observations silently.
+
+**Point-in-time rule:** Treat a UTC day's pageviews as unavailable for any trading signal until **at least 48 hours after that UTC day ends**, to allow for reporting lag. Use only data whose conservative availability timestamp precedes the close of the 6h decision candle. Never use same-day final pageview totals for intraday decisions. A 7-day trailing attention baseline must be computed only from previously available observations; all thresholds and horizons must be fixed before examining returns.
+
+**Hypothesis:** A spike in previously available public attention, followed by a decline in attention while price attempts to extend the prior move, predicts weaker forward 6h-to-7d risk-adjusted returns than comparable momentum events without the spike. Also test the opposite hypothesis (attention persistence). Separate BTC and ETH, compare against momentum, volatility and market-regime controls; report event counts, overlap, fee-adjusted returns and uncertainty, including null findings. Daily attention limits timing precision; this test cannot establish what traders knew in real time without verified publication timestamps.
+
+**Validation:** First audit the attention feed and point-in-time joins; freeze the event definition; run development and genuinely held-out time periods. The already inspected 2025–26 price history is not independent validation. No live orders or paper deployment.
