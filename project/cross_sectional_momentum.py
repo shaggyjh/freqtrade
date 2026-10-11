@@ -11,7 +11,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from benchmark_buy_hold import load_candles
+def load_daily(root: Path, symbol: str) -> pd.DataFrame:
+    files = sorted(root.rglob(f"{symbol}_USDT-1d.feather"))
+    if len(files) != 1:
+        raise FileNotFoundError(f"Expected one {symbol} daily feather file, found {len(files)}")
+    frame = pd.read_feather(files[0])
+    frame["date"] = pd.to_datetime(frame["date"], utc=True)
+    return frame.sort_values("date")
+
 
 UNIVERSE = ("BTC", "ETH", "SOL", "XRP", "ADA", "LINK", "LTC", "DOGE")
 LOOKBACK = 30
@@ -26,7 +33,7 @@ def evaluate(root: Path, fee: float) -> dict:
     missing = {}
     for symbol in UNIVERSE:
         try:
-            df = load_candles(root, symbol)[["date", "open", "close"]].copy()
+            df = load_daily(root, symbol)[["date", "open", "close"]].copy()
             if df.empty:
                 raise ValueError("empty")
             df = df.set_index("date").sort_index()
