@@ -6,6 +6,7 @@ on:
     paths:
       - 'project/relative_value_study.py'
       - 'project/relative_value_spot_proxy.py'
+      - 'project/strategies/CompressionBreakout.py'
       - 'project/ARBITRAGE_RESEARCH.md'
       - '.github/workflows/relative-value-holdout.yml'
 
@@ -39,6 +40,20 @@ jobs:
             docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
               project/relative_value_spot_proxy.py --data-dir project/data_older \
               --fee "$fee" --output "project/results/older-holdout/btc_spot_fee_${fee}.json"
+          done
+      - name: Test compression breakout on older candles
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            label="compression_fee_${fee}"
+            mkdir -p "project/results/older-holdout/${label}"
+            chmod 777 "project/results/older-holdout/${label}"
+            docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              backtesting --config project/config.paper.json --datadir project/data_older \
+              --strategy-path project/strategies --strategy CompressionBreakout \
+              --timeframe 6h --fee "$fee" --timerange 20230301-20250101 \
+              --export trades --backtest-directory "project/results/older-holdout/${label}" \
+              2>&1 | tee "project/results/older-holdout/${label}/backtest.log"
           done
       - name: Save older-holdout diagnostics
         if: always()
