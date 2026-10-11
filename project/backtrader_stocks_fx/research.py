@@ -23,7 +23,7 @@ START_CASH = 10000.0
 
 
 class Trend(bt.Strategy):
-    params = dict(fast=20, slow=100, allocation=0.95)
+    params = dict(fast=20, slow=100, allocation=0.95, trade_start=None)
 
     def __init__(self):
         self.fast = bt.ind.SMA(self.data.close, period=self.p.fast)
@@ -35,6 +35,8 @@ class Trend(bt.Strategy):
             self.pending = None
 
     def next(self):
+        if self.p.trade_start is not None and self.data.datetime.date(0) < self.p.trade_start:
+            return
         if self.pending:
             return
         if not self.position and self.fast[0] > self.slow[0] and self.fast[-1] <= self.slow[-1]:
@@ -67,10 +69,10 @@ def download(symbol: str, start: str, end: str) -> pd.DataFrame:
     return frame
 
 
-def simulate(frame: pd.DataFrame, commission: float, slippage: float) -> dict:
+def simulate(frame: pd.DataFrame, commission: float, slippage: float, trade_start=None) -> dict:
     engine = bt.Cerebro(stdstats=False)
     engine.adddata(bt.feeds.PandasData(dataname=frame))
-    engine.addstrategy(Trend)
+    engine.addstrategy(Trend, trade_start=trade_start)
     engine.broker.setcash(START_CASH)
     engine.broker.setcommission(commission=commission)
     engine.broker.set_slippage_perc(perc=slippage, slip_open=True, slip_match=True)
@@ -84,7 +86,8 @@ def simulate(frame: pd.DataFrame, commission: float, slippage: float) -> dict:
     daily = pd.Series({pd.Timestamp(k): v for k, v in returns.items()}, dtype=float).sort_index()
     max_dd = float(strategy.analyzers.drawdown.get_analysis().max.drawdown)
     # Same commission/slippage assumptions for passive benchmark, using first open / last close.
-    benchmark = START_CASH * (frame.close.iloc[-1] / frame.open.iloc[0]) * (1 - commission - slippage) / (1 + commission + slippage)
+    start_index = frame.index.searchsorted(pd.Timestamp(trade_start)) if trade_start is not None else 0
+    benchmark = START_CASH * (frame.close.iloc[-1] / frame.open.iloc[start_index]) * (1 - commission - slippage) / (1 + commission + slippage)
     return {
         "initial_cash": START_CASH,
         "ending_equity": round(final, 2),
@@ -122,7 +125,7 @@ def main():
                                 **simulate(development, cfg["commission"], cfg["slippage"])},
                 "holdout": {"start": str(frame.index[cut].date()), "end": str(frame.index[-1].date()),
                             "warmup_bars": cut - max(0, cut - warmup),
-                            **simulate(holdout, cfg["commission"], cfg["slippage"])},
+                            **simulate(holdout, cfg["commission"], cfg["slippage"], frame.index[cut].date())},
             }
         except Exception as exc:
             report["assets"][name] = {"error": str(exc)}
