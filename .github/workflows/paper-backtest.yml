@@ -47,6 +47,9 @@ jobs:
           run_test ema_6h_indicative_taker SimpleTrend 6h 0.005
           run_test ema_6h_taker_plus_friction SimpleTrend 6h 0.007
           run_test ema_1d_original_fee SimpleTrend 1d 0.012
+          run_test compression_breakout_6h_taker CompressionBreakout 6h 0.005
+          run_test compression_breakout_6h_friction CompressionBreakout 6h 0.007
+          run_test compression_breakout_6h_stress CompressionBreakout 6h 0.012
           run_test donchian_6h_original_fee DonchianBreakout 6h 0.012
           run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
