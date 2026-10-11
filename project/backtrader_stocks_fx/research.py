@@ -14,8 +14,10 @@ import pandas as pd
 import yfinance as yf
 
 ASSETS = {
-    "SPY": {"symbol": "SPY", "market": "us_equity", "commission": 0.0005, "slippage": 0.0005},
-    "QQQ": {"symbol": "QQQ", "market": "us_equity", "commission": 0.0005, "slippage": 0.0005},
+    "AAPL": {"symbol": "AAPL", "market": "us_stock", "commission": 0.0005, "slippage": 0.0005},
+    "MSFT": {"symbol": "MSFT", "market": "us_stock", "commission": 0.0005, "slippage": 0.0005},
+    "SHEL_L": {"symbol": "SHEL.L", "market": "uk_stock", "commission": 0.0005, "slippage": 0.0008, "uk_stamp_duty_buy": 0.005},
+    "AZN_L": {"symbol": "AZN.L", "market": "uk_stock", "commission": 0.0005, "slippage": 0.0008, "uk_stamp_duty_buy": 0.005},
     "EURUSD": {"symbol": "EURUSD=X", "market": "spot_fx_proxy", "commission": 0.0001, "slippage": 0.0001},
     "GBPUSD": {"symbol": "GBPUSD=X", "market": "spot_fx_proxy", "commission": 0.0001, "slippage": 0.0001},
 }
@@ -69,12 +71,12 @@ def download(symbol: str, start: str, end: str) -> pd.DataFrame:
     return frame
 
 
-def simulate(frame: pd.DataFrame, commission: float, slippage: float, trade_start=None) -> dict:
+def simulate(frame: pd.DataFrame, commission: float, slippage: float, trade_start=None, buy_tax: float = 0.0) -> dict:
     engine = bt.Cerebro(stdstats=False)
     engine.adddata(bt.feeds.PandasData(dataname=frame))
     engine.addstrategy(Trend, trade_start=trade_start)
     engine.broker.setcash(START_CASH)
-    engine.broker.setcommission(commission=commission)
+    engine.broker.setcommission(commission=commission + buy_tax / 2)  # Conservative round-trip tax proxy; real UK SDRT applies on buys only.
     engine.broker.set_slippage_perc(perc=slippage, slip_open=True, slip_match=True)
     engine.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     engine.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
@@ -87,7 +89,7 @@ def simulate(frame: pd.DataFrame, commission: float, slippage: float, trade_star
     max_dd = float(strategy.analyzers.drawdown.get_analysis().max.drawdown)
     # Same commission/slippage assumptions for passive benchmark, using first open / last close.
     start_index = frame.index.searchsorted(pd.Timestamp(trade_start)) if trade_start is not None else 0
-    benchmark = START_CASH * (frame.close.iloc[-1] / frame.open.iloc[start_index]) * (1 - commission - slippage) / (1 + commission + slippage)
+    benchmark = START_CASH * (frame.close.iloc[-1] / frame.open.iloc[start_index]) * (1 - commission - slippage) / (1 + commission + slippage + buy_tax)
     return {
         "initial_cash": START_CASH,
         "ending_equity": round(final, 2),
@@ -108,7 +110,7 @@ def main():
     args = parser.parse_args()
     report = {"research_only": True, "execution": "Backtrader next-session open; no live broker",
               "data_source": "Unofficial Yahoo Finance adjusted daily OHLC, may be revised or unavailable",
-              "limitations": "No shorting, leverage, borrowing, FX swap/rollover, financing, FX conversion, market-hours microstructure, taxes, survivorship correction or execution-quality bid/ask. FX is an unlevered USD-quote price proxy, not a realistic broker account. Commission/slippage are illustrative assumptions, not broker quotes.",
+              "limitations": "No shorting, leverage, borrowing, FX swap/rollover, financing, FX conversion, market-hours microstructure, detailed taxes, survivorship correction or execution-quality bid/ask. UK SDRT is approximated by splitting a 0.5% buy tax over both sides, not modeled at the actual purchase event. FX is an unlevered USD-quote price proxy, not a realistic broker account. Commission/slippage are illustrative assumptions, not broker quotes.",
               "assets": {}}
     for name, cfg in ASSETS.items():
         try:
@@ -121,11 +123,12 @@ def main():
             report["assets"][name] = {
                 "market": cfg["market"], "ticker": cfg["symbol"],
                 "cost_per_side": {"commission": cfg["commission"], "slippage": cfg["slippage"]},
+                "uk_buy_tax": cfg.get("uk_stamp_duty_buy", 0.0),
                 "development": {"start": str(development.index[0].date()), "end": str(development.index[-1].date()),
-                                **simulate(development, cfg["commission"], cfg["slippage"])},
+                                **simulate(development, cfg["commission"], cfg["slippage"], buy_tax=cfg.get("uk_stamp_duty_buy", 0.0))},
                 "holdout": {"start": str(frame.index[cut].date()), "end": str(frame.index[-1].date()),
                             "warmup_bars": cut - max(0, cut - warmup),
-                            **simulate(holdout, cfg["commission"], cfg["slippage"], frame.index[cut].date())},
+                            **simulate(holdout, cfg["commission"], cfg["slippage"], frame.index[cut].date(), cfg.get("uk_stamp_duty_buy", 0.0))},
             }
         except Exception as exc:
             report["assets"][name] = {"error": str(exc)}
