@@ -54,17 +54,20 @@ def evaluate(root: Path, fee: float) -> dict:
         raise ValueError("Daily calendar has gaps")
     returns = closes.pct_change()
     # At close i, select using closes through i; trade at next open i+1.
-    # Rebalance every 7 days. Mark holdings open-to-open to avoid lookahead.
+    # Rebalance every 7 days. Mark holdings at daily opens to avoid lookahead.
     cash = START_CAPITAL
     units = {s: 0.0 for s in prices}
     turnover = 0.0
     rebalances = 0
     trades = 0
     equity_curve = []
+    equity_dates = []
+    paid_fees = 0.0
     for i in range(LOOKBACK + 1, len(dates)):
         px = opens.iloc[i]
         equity = cash + sum(units[s] * px[s] for s in units)
         equity_curve.append(equity)
+        equity_dates.append(dates[i])
         if (i - (LOOKBACK + 1)) % REBALANCE_DAYS != 0:
             continue
         signal_i = i - 1
@@ -85,6 +88,7 @@ def evaluate(root: Path, fee: float) -> dict:
                 quantity = gross / px[s]
                 units[s] -= quantity
                 cash += gross * (1 - fee)
+                paid_fees += gross * fee
                 turnover += gross
                 trades += 1
         # Recompute spendable cash; target holdings are capped by available cash.
@@ -96,11 +100,28 @@ def evaluate(root: Path, fee: float) -> dict:
             if gross > 0.01:
                 units[s] += gross / px[s]
                 cash -= gross * (1 + fee)
+                paid_fees += gross * fee
                 turnover += gross
                 trades += 1
         rebalances += 1
     final_px = closes.iloc[-1]
     final_equity = cash + sum(units[s] * final_px[s] * (1 - fee) for s in units)
+    # Mark final holdings at last close, deducting hypothetical exit fees.
+    liquidation_fees = sum(units[s] * final_px[s] * fee for s in units)
+    marks = pd.Series(equity_curve, index=pd.DatetimeIndex(equity_dates))
+    yearly = {}
+    for year, group in marks.groupby(marks.index.year):
+        # First-to-last open marks within calendar year (partial years flagged).
+        first = float(group.iloc[0])
+        last = float(group.iloc[-1])
+        yearly[str(year)] = {
+            "first_open_equity_usdt": round(first, 2),
+            "last_open_equity_usdt": round(last, 2),
+            "period_return_pct": round((last / first - 1) * 100, 3),
+            "first_date": str(group.index[0].date()),
+            "last_date": str(group.index[-1].date()),
+            "partial_year": len(group) < 365,
+        }
     benchmark = {}
     for s in ("BTC", "ETH"):
         if s in prices:
@@ -114,6 +135,9 @@ def evaluate(root: Path, fee: float) -> dict:
         "missing_assets": missing, "fee_per_side": fee,
         "rebalance_days": REBALANCE_DAYS, "rebalances": rebalances,
         "order_count": trades, "gross_turnover_usdt": round(turnover, 2),
+        "fees_paid_usdt_excluding_estimated_exit": round(paid_fees, 2),
+        "estimated_final_exit_fees_usdt": round(liquidation_fees, 2),
+        "calendar_year_open_mark_performance": yearly,
         "starting_capital_usdt": START_CAPITAL,
         "ending_equity_usdt": round(final_equity, 2),
         "net_profit_usdt": round(final_equity - START_CAPITAL, 2),
