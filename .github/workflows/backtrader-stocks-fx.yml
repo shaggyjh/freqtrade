@@ -1,0 +1,28 @@
+name: Backtrader stocks and FX paper research
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/backtrader_stocks_fx/**'
+      - '.github/workflows/backtrader-stocks-fx.yml'
+permissions:
+  contents: read
+jobs:
+  paper-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install -r project/backtrader_stocks_fx/requirements.txt
+      - name: Run daily stocks and FX research
+        run: python project/backtrader_stocks_fx/research.py
+      - name: Upload paper results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtrader-stocks-fx-results
+          path: project/backtrader_stocks_fx/results/
