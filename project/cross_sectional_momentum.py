@@ -28,7 +28,7 @@ REBALANCE_DAYS = 7
 START_CAPITAL = 10000.0
 
 
-def evaluate(root: Path, fee: float) -> dict:
+def evaluate(root: Path, fee: float, rebalance_band: float = 0.0) -> dict:
     prices = {}
     missing = {}
     for symbol in UNIVERSE:
@@ -79,10 +79,17 @@ def evaluate(root: Path, fee: float) -> dict:
         eligible = score[(momentum > 0) & score.notna()].sort_values(ascending=False)
         chosen = list(eligible.head(HOLDINGS).index) if market_ok else []
         target = {s: (1.0 / len(chosen) if s in chosen else 0.0) for s in units}
+        # Skip small allocation drift while always allowing full exits.
+        # The band is expressed as a fraction of total portfolio equity.
+        effective_target = target.copy()
+        for s in units:
+            current_weight = units[s] * px[s] / equity if equity > 0 else 0.0
+            if target[s] > 0 and abs(current_weight - target[s]) < rebalance_band:
+                effective_target[s] = current_weight
         # Sell first; fees deducted in quote currency.
         for s in units:
             current = units[s] * px[s]
-            desired = equity * target[s]
+            desired = equity * effective_target[s]
             if current > desired + 0.01:
                 gross = current - desired
                 quantity = gross / px[s]
@@ -133,7 +140,7 @@ def evaluate(root: Path, fee: float) -> dict:
         "research_only": True, "first_day": str(dates[LOOKBACK + 1]),
         "last_day": str(dates[-1]), "assets_used": list(prices),
         "missing_assets": missing, "fee_per_side": fee,
-        "rebalance_days": REBALANCE_DAYS, "rebalances": rebalances,
+        "rebalance_days": REBALANCE_DAYS, "rebalance_band": rebalance_band, "rebalances": rebalances,
         "order_count": trades, "gross_turnover_usdt": round(turnover, 2),
         "fees_paid_usdt_excluding_estimated_exit": round(paid_fees, 2),
         "estimated_final_exit_fees_usdt": round(liquidation_fees, 2),
@@ -155,10 +162,13 @@ def main() -> None:
     p.add_argument("--data-dir", required=True)
     p.add_argument("--output", required=True)
     p.add_argument("--fee", type=float, default=0.007)
+    p.add_argument("--rebalance-band", type=float, default=0.0)
     a = p.parse_args()
     if not 0 <= a.fee < 1:
         p.error("Invalid fee")
-    result = evaluate(Path(a.data_dir), a.fee)
+    if not 0 <= a.rebalance_band < 1:
+        p.error("Rebalance band must be between 0 and 1")
+    result = evaluate(Path(a.data_dir), a.fee, a.rebalance_band)
     out = Path(a.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2) + "\n")
