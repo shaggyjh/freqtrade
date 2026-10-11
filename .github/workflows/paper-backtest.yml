@@ -46,6 +46,10 @@ jobs:
           run_test donchian_6h_original_fee DonchianBreakout 6h 0.012
           run_test failed_breakout_6h_original_fee FailedBreakout 6h 0.012
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
+          # Cost stress: 1.2% fee plus 0.3% per-side execution-cost proxy.
+          # This is a sensitivity test, not a calibrated exchange spread model.
+          run_test ema_6h_cost_stress SimpleTrend 6h 0.015
+          run_test volatility_filtered_6h_cost_stress VolatilityFilteredTrend 6h 0.015
           run_test crowd_exhaustion_6h CrowdExhaustion 6h 0.012
           run_test attention_aftershock_6h AttentionAftershock 6h 0.012
       - name: Evaluate two candidates and buy-and-hold on identical historical windows
@@ -65,6 +69,18 @@ jobs:
                 backtesting --config project/config.paper.json \
                 --strategy-path project/strategies --strategy "$strategy" \
                 --timeframe 6h --fee 0.012 --timerange "$start-$end" \
+                --export trades --backtest-directory "project/results/$name" \
+                2>&1 | tee "project/results/$name/backtest.log"
+            done
+            # Also stress each strategy at 1.5% total per-side assumed costs.
+            for strategy in SimpleTrend VolatilityFilteredTrend; do
+              name="${strategy}_6h_cost_stress_window_${offset}"
+              mkdir -p "project/results/$name"
+              chmod 777 "project/results/$name"
+              docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+                backtesting --config project/config.paper.json \
+                --strategy-path project/strategies --strategy "$strategy" \
+                --timeframe 6h --fee 0.015 --timerange "$start-$end" \
                 --export trades --backtest-directory "project/results/$name" \
                 2>&1 | tee "project/results/$name/backtest.log"
             done
