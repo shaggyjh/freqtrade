@@ -48,10 +48,10 @@ jobs:
           run_test volatility_filtered_6h VolatilityFilteredTrend 6h 0.012
           run_test crowd_exhaustion_6h CrowdExhaustion 6h 0.012
           run_test attention_aftershock_6h AttentionAftershock 6h 0.012
-      - name: Evaluate baseline on three separate historical windows
+      - name: Evaluate two candidates and buy-and-hold on identical historical windows
         run: |
           set -euo pipefail
-          # Non-overlapping 90-day windows; earlier candles provide warmup.
+          # Non-overlapping 90-day windows; earlier candles provide warmup.\n          # Do not change strategy parameters based on evaluation results.
           for offset in 270 180 90; do
             start="$(date -u -d "$offset days ago" +%Y%m%d)"
             end="$(date -u -d "$((offset - 90)) days ago" +%Y%m%d)"
@@ -67,6 +67,11 @@ jobs:
                 --export trades --backtest-directory "project/results/$name" \
                 2>&1 | tee "project/results/$name/backtest.log"
             done
+            mkdir -p "project/results/benchmark_window_${offset}"
+            docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              python project/benchmark_buy_hold.py \
+              --start "$start" --end "$end" --fee 0.012 \
+              --output "project/results/benchmark_window_${offset}/buy_hold.json"
           done
       - name: Save research results
         if: always()
