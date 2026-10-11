@@ -34,6 +34,15 @@ jobs:
               project/cross_sectional_momentum.py --data-dir project/data_portfolio \
               --fee "$fee" --output "project/results/portfolio/fee_${fee}.json"
           done
+      - name: Compare predeclared 5 percent no-trade band
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              project/cross_sectional_momentum.py --data-dir project/data_portfolio \
+              --fee "$fee" --rebalance-band 0.05 \
+              --output "project/results/portfolio/band_5pct_fee_${fee}.json"
+          done
       - name: Upload research results
         if: always()
         uses: actions/upload-artifact@v4
