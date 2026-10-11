@@ -1,0 +1,40 @@
+name: Relative-value older holdout (research only)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/relative_value_study.py'
+      - 'project/ARBITRAGE_RESEARCH.md'
+      - '.github/workflows/relative-value-holdout.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  older-holdout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download frozen older Coinbase 6h candles
+        run: |
+          set -euo pipefail
+          mkdir -p project/results/older-holdout project/data_older
+          chmod -R 777 project/results/older-holdout project/data_older
+          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            download-data --config project/config.paper.json --timeframes 6h \
+            --timerange 20230101-20250101 --datadir project/data_older
+      - name: Test frozen ratio hypothesis without any trades
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            project/relative_value_study.py --data-dir project/data_older \
+            --output project/results/older-holdout/relative_value.json
+      - name: Save older-holdout diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-eth-relative-value-older-holdout
+          path: project/results/older-holdout/
+          if-no-files-found: warn
