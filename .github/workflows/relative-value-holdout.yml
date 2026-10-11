@@ -1,0 +1,64 @@
+name: Relative-value older holdout (research only)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/relative_value_study.py'
+      - 'project/relative_value_spot_proxy.py'
+      - 'project/strategies/CompressionBreakout.py'
+      - 'project/ARBITRAGE_RESEARCH.md'
+      - '.github/workflows/relative-value-holdout.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  older-holdout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download frozen older Coinbase 6h candles
+        run: |
+          set -euo pipefail
+          mkdir -p project/results/older-holdout project/data_older
+          chmod -R 777 project/results/older-holdout project/data_older
+          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            download-data --config project/config.paper.json --timeframes 6h \
+            --timerange 20230101-20250101 --datadir project/data_older
+      - name: Test frozen ratio hypothesis without any trades
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            project/relative_value_study.py --data-dir project/data_older \
+            --output project/results/older-holdout/relative_value.json
+      - name: Cost-adjusted BTC spot-only proxy (older sample)
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              project/relative_value_spot_proxy.py --data-dir project/data_older \
+              --fee "$fee" --output "project/results/older-holdout/btc_spot_fee_${fee}.json"
+          done
+      - name: Test compression breakout on older candles
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            label="compression_fee_${fee}"
+            mkdir -p "project/results/older-holdout/${label}"
+            chmod 777 "project/results/older-holdout/${label}"
+            docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              backtesting --config project/config.paper.json --datadir project/data_older \
+              --strategy-path project/strategies --strategy CompressionBreakout \
+              --timeframe 6h --fee "$fee" --timerange 20230301-20250101 \
+              --export trades --backtest-directory "project/results/older-holdout/${label}" \
+              2>&1 | tee "project/results/older-holdout/${label}/backtest.log"
+          done
+      - name: Save older-holdout diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-eth-relative-value-older-holdout
+          path: project/results/older-holdout/
+          if-no-files-found: warn
