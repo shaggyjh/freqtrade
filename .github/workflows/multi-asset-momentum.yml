@@ -1,0 +1,42 @@
+name: Multi-asset momentum paper research
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'project/cross_sectional_momentum.py'
+      - '.github/workflows/multi-asset-momentum.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  portfolio-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download fixed Coinbase spot universe
+        run: |
+          set -euo pipefail
+          mkdir -p project/data_portfolio project/results/portfolio
+          chmod -R 777 project/data_portfolio project/results/portfolio
+          docker run --rm -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            download-data --config project/config.paper.json \
+            --pairs BTC/USDT ETH/USDT SOL/USDT XRP/USDT ADA/USDT LINK/USDT LTC/USDT DOGE/USDT \
+            --timeframes 1d --timerange 20230101-20261011 \
+            --datadir project/data_portfolio
+      - name: Evaluate frozen allocation rule and fee sensitivity
+        run: |
+          set -euo pipefail
+          for fee in 0.005 0.007 0.012; do
+            docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+              project/cross_sectional_momentum.py --data-dir project/data_portfolio \
+              --fee "$fee" --output "project/results/portfolio/fee_${fee}.json"
+          done
+      - name: Upload research results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-asset-momentum-research
+          path: project/results/portfolio/
