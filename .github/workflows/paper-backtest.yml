@@ -114,6 +114,11 @@ jobs:
               --start "$start" --end "$end" --fee 0.012 \
               --output "project/results/benchmark_window_${offset}/buy_hold.json"
           done
+      - name: Evaluate BTC ETH relative-value hypothesis (no orders)
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python -v "$PWD:/freqtrade" -w /freqtrade freqtradeorg/freqtrade:stable \
+            project/relative_value_study.py --output project/results/relative_value_study.json
       - name: Save research results
         if: always()
         uses: actions/upload-artifact@v4
